@@ -8,15 +8,26 @@ maintainer:         andorthekid@gmail.com
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
 common warnings
-    ghc-options: -Wall
+    ghc-options: -Wall -threaded
 executable Experimenting
     import:           warnings
     main-is:          Main.hs
-    -- other-modules:
+    other-modules:    New
     -- other-extensions:
+    default-extensions: OverloadedStrings
     build-depends:    base ^>=4.20.0.0
                     , containers
                     , text
-                    , streaming
+                    , conduit
+                    , conduit-extra
+                    , bytestring
+                    , utf8-string
+                    , attoparsec
+                    , async
+                    , random
+                    , time
+                    , lens
+                    , mtl
+                    , transformers
     hs-source-dirs:   app
     default-language: Haskell2010
