@@ -15,54 +15,60 @@
 module New where
 
 import Data.Kind (Type)
+import Control.Monad (guard)
 
 data Client
   = Bob
   | Alice
+  | Charlie
   deriving (Show, Eq)
 
 data ClientMailer (client :: Client) where
   ClientMailer :: String -> ClientMailer client
   deriving (Show)
 
-bobMailer :: ClientMailer 'Bob
-bobMailer = ClientMailer "Bob"
-
-aliceMailer :: ClientMailer 'Alice
-aliceMailer = ClientMailer "Alice"
-
-data MailerList :: [Client] -> Type where
-  MZero :: MailerList '[]
-  (:&) :: ClientMailer c -> MailerList cs -> MailerList (c : cs)
+data Vec :: (f -> Type) -> [f] -> Type where
+  VNil :: Vec f '[]
+  (:&) :: f x -> Vec f xs -> Vec f (x : xs)
 
 infixr 5 :&
 
-class HasClient (c :: Client) ml where
-  getMailer :: ml -> ClientMailer c
+class VecHas (f :: k -> Type) c ml where
+  getItem :: ml -> f c
 
-instance HasClient c (MailerList (c : cs)) where
-  getMailer (m :& _) = m
+instance VecHas f c (Vec f (c : cs)) where
+  getItem (m :& _) = m
 
-instance {-# OVERLAPS #-} (HasClient c (MailerList css)) => HasClient c (MailerList (c' : css)) where
-  getMailer (_ :& ms) = getMailer ms
+instance {-# OVERLAPS #-} (VecHas f c (Vec f css)) => VecHas f c (Vec f (c' : css)) where
+  getItem (_ :& ms) = getItem ms
 
-lst :: MailerList [Bob, Alice]
-lst = bobMailer :& aliceMailer :& MZero
+lst :: Vec ClientMailer [Bob, Alice]
+lst =
+  ClientMailer "Bob"
+    :& ClientMailer "Alice"
+    :& VNil
 
-getBob :: (HasClient Bob ml) => ml -> ClientMailer 'Bob
-getBob ml = getMailer ml
+getBob :: (VecHas ClientMailer Bob ml) => ml -> ClientMailer Bob
+getBob = getItem
 
 test :: ClientMailer Bob
-test = getBob lst
+test = getItem lst
 
 -- >>> test
 -- ClientMailer "Bob"
 
-getAlice :: (HasClient Alice ml) => ml -> ClientMailer 'Alice
-getAlice ml = getMailer ml
+data IOClientGetter (client :: Client) where
+  IOClientGetter :: {runIOClientGetter :: IO (Maybe Client)} -> IOClientGetter client
 
-test2 :: ClientMailer Alice
-test2 = getAlice lst
+getBobIO :: IO (Maybe Client)
+getBobIO = do
+  str <- getLine
+  guard (str == "Bob")
+  pure $ Just Bob
 
--- >>> test2
--- ClientMailer "Alice"
+ioLst :: Vec IOClientGetter '[Bob]
+ioLst = (IOClientGetter getBobIO) :& VNil
+
+testIO :: IO (Maybe Client)
+testIO = runIOClientGetter (getItem ioLst :: IOClientGetter Bob)
+
